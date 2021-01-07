@@ -3,6 +3,7 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+np.random.seed(274872)
 
 def regular_symmetric_graph(nodes = 100, k=4):
     G = nx.Graph()
@@ -55,7 +56,7 @@ def simulate_epidemic(G, beta, rho, time=15, vaccination=None, num_infected=10):
         try:
 
             percentage_vaccination = vaccination[0]
-            num_vaccination = int(percentage_vaccination * len(nodes) / 100)
+            num_vaccination = int(np.round(percentage_vaccination * len(nodes) / 100, 0))
             not_vaccinated = [(node, state) for state in ['S', 'I', 'R'] for node in state_dict[state]]
 
             # vaccinated = np.random.choice(not_vaccinated, num_vaccination)
@@ -74,7 +75,7 @@ def simulate_epidemic(G, beta, rho, time=15, vaccination=None, num_infected=10):
         try:
             if vaccination is not None:
                 percentage_vaccination = vaccination[t] - vaccination[t-1]
-                num_vaccination = int(percentage_vaccination * len(nodes) / 100)
+                num_vaccination = int(np.round(percentage_vaccination * len(nodes) / 100, 0))
                 not_vaccinated = [(node, state) for state in ['S', 'I', 'R'] for node in state_dict[state]]
 
                 # vaccinated = np.random.choice(not_vaccinated, num_vaccination)
@@ -237,21 +238,27 @@ if __name__ == '__main__':
         k_values = [best_k - delta_k, best_k, best_k + delta_k]
         beta_values = [best_beta - delta_beta, best_beta, best_beta + delta_beta]
         rho_values = [best_rho - delta_rho, best_rho, best_rho + delta_rho]
-
-        for k, beta, rho in itertools.product(k_values, beta_values, rho_values):
+        for k in range(10, 5, -1):
             G = random_graph(934, avg_degree=k)
-            mean_distr, std_distr = repeat_simulation(G, beta=beta, rho=rho, vaccination=vaccination_percentages, time=15, n_repetitions=n_rep)
+            for beta, rho in itertools.product(beta_values, rho_values):
+                G = random_graph(934, avg_degree=k)
+                mean_distr, std_distr = repeat_simulation(G, beta=beta, rho=rho, vaccination=vaccination_percentages, time=15, n_repetitions=n_rep, num_infected=1)
 
-            new_infected = -np.diff([934] + [x for x in mean_distr[0]])
-            distance = new_infected - real_infected_distr
+                delta_I = np.diff(mean_distr[1])
+                delta_R = np.diff(mean_distr[2])
+                delta_V = np.diff(mean_distr[3])
 
-            rmse = np.sqrt(distance.dot(distance) / 15)
-            if rmse < min_rmse:
-                print(rmse)
-                min_rmse = rmse
-                best_k = k
-                best_beta = beta
-                best_rho = rho
+                new_infected = np.hstack(([1], delta_I+delta_R+delta_V))
 
+                distance = new_infected - real_infected_distr
 
+                rmse = np.sqrt(distance.dot(distance) / 15)
+                if rmse < min_rmse:
+                    print(new_infected)
+                    min_rmse = rmse
+                    best_k = k
+                    best_beta = beta
+                    best_rho = rho
+
+            print(rmse)
 
